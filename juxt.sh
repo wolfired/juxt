@@ -248,7 +248,7 @@ function codecov_upload() {
         return
     fi
 
-    codecov -t $CODECOV_TOKEN -f $lcovdata
+    bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN -f $lcovdata
 
     if (( 0 != $? )); then
         exit $?
