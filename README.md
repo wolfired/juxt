@@ -4,6 +4,8 @@ juxt
 [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/wolfired/juxt/rust.yml)](https://github.com/wolfired/juxt)
 [![Codecov](https://img.shields.io/codecov/c/gh/wolfired/juxt?token=95IHYGJI9H&style=flat&logo=codecov)](https://app.codecov.io/gh/wolfired/juxt)
 
+[![Crates.io Version](https://img.shields.io/crates/v/juxt_md5?style=flat&label=md5)](https://crates.io/crates/juxt_md5)
+
 nothing else
 
 # Dev
