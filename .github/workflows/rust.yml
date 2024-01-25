@@ -24,5 +24,6 @@ jobs:
         rustup component add llvm-tools-x86_64-unknown-linux-gnu
         cargo install rustfilt
     - name: Coverage
-      run: bash ./juxt.sh code_coverage
-
+      run: |
+        bash ./juxt.sh code_coverage
+        bash ./juxt.sh codecov_upload
