@@ -19,10 +19,10 @@ jobs:
     - name: Prepare
       run: |
         sudo apt-get update -y
+        apt-get install -y gojq
         rustup default nightly
         rustup component add llvm-tools-x86_64-unknown-linux-gnu
         cargo install rustfilt
-        go install github.com/itchyny/gojq/cmd/gojq@latest
     - name: Coverage
       run: bash ./juxt.sh code_coverage
 
