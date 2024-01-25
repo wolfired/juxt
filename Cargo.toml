@@ -1,0 +1,4 @@
+[workspace]
+members = [ "x/*"]
+resolver = "2"
+package = { license-file = "./LICENSE"}
