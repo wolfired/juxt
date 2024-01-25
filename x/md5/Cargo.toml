@@ -1,0 +1,13 @@
+[package]
+name = "juxt_md5"
+description = "just md5, nothing else"
+version = "0.1.0"
+edition = "2021"
+homepage = "https://github.com/wolfired/juxt/x/md5"
+repository = "https://github.com/wolfired/juxt/x/md5"
+documentation = "https://docs.rs/juxt_md5"
+license-file.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
