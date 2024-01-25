@@ -156,8 +156,8 @@ function cargo_new() {
     sed -i -E "s#(name\s+=\s+".+?")#\1\ndescription = \"just $x_proj_name, nothing else\"#g" $x_crate_path/Cargo.toml
     sed -i -E 's#(edition\s+=\s+".+?")#\1\nlicense-file.workspace = true#g' $x_crate_path/Cargo.toml
     sed -i -E "s#(edition\s+=\s+".+?")#\1\ndocumentation = \"https://docs.rs/$x_crate_name\"#g" $x_crate_path/Cargo.toml
-    sed -i -E "s#(edition\s+=\s+".+?")#\1\nrepository = \"https://github.com/wolfired/juxt/x/$x_crate_name\"#g" $x_crate_path/Cargo.toml
-    sed -i -E "s#(edition\s+=\s+".+?")#\1\nhomepage = \"https://github.com/wolfired/juxt/x/$x_crate_name\"#g" $x_crate_path/Cargo.toml
+    sed -i -E "s#(edition\s+=\s+".+?")#\1\nrepository = \"https://github.com/wolfired/juxt/tree/main/x/$x_crate_name\"#g" $x_crate_path/Cargo.toml
+    sed -i -E "s#(edition\s+=\s+".+?")#\1\nhomepage = \"https://github.com/wolfired/juxt/tree/main/x/$x_crate_name\"#g" $x_crate_path/Cargo.toml
 
 cat <<EOF > $x_crate_path/README.md
 $x_crate_name
