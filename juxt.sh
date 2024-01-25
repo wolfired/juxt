@@ -305,6 +305,10 @@ function main() {
     x_proj_root=$proj_path/x
     x_proj_prefix=${proj_name}_
 
-    select_action
+    if (( 0 == $# )); then
+        select_action
+    else
+        $1
+    fi
 }
-main
+main $@
