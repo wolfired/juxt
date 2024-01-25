@@ -63,18 +63,18 @@ function color_ps3() {
 }
 
 function input_info() {
-    local result=${1:?''}
+    local retval=${1:?''}
     local prompt=${2:-'input: '}
 
     while true; do
         read -p "$prompt" info
-        eval $result='$info'
+        eval $retval='$info'
         break
     done
 }
 
 function select_option() {
-    local result=${1:?''}
+    local retval=${1:?''}
     local prompt=${2:?''}
     shift 2
     local options=()
@@ -87,7 +87,7 @@ function select_option() {
     select option in "${options[@]}"; do
         local index=$(($REPLY-1))
         if (( 0 <= $index && $index < ${#options[@]} )); then
-            eval $result='$index'
+            eval $retval='$index'
             break
         else
             color_msg r "illegal selection: $REPLY" 1>&2
@@ -96,21 +96,51 @@ function select_option() {
     done
 }
 
-function cargo_test_target() {
-    local crate_name=${1:?''}
+function select_x_proj_name() {
+    local retval=${1:?''}
+    local x_projs=(`ls $x_proj_root`)
+    select_option retval_x_proj_index 'select x proj' "${x_projs[@]}"
+    local x_proj_index=$retval_x_proj_index
+    local x_proj_name=${x_projs[$x_proj_index]}
+     eval $retval='$x_proj_name'
+}
 
+function select_x_crate_name() {
+    local retval=${1:?''}
+    select_x_proj_name retval_x_proj_name
+    local x_proj_name=$retval_x_proj_name
+    local x_crate_name=$x_proj_prefix$x_proj_name
+    eval $retval='$x_crate_name'
+}
+
+function cargo_test_crate() {
+    local crate_name=${1:?'need a crate name'}
     cargo test -p $crate_name
 }
 
 function cargo_test() {
-    local x_projs=(`ls $x_proj_root`)
-    select_option x_proj_index 'select crate type' "${x_projs[@]}"
-    local x_crate_name=$x_proj_prefix${x_projs[$x_proj_index]}
-    cargo_test_target $x_crate_name
+    select_x_crate_name retval_x_crate_name
+    local x_crate_name=$retval_x_crate_name
+    cargo_test_crate $x_crate_name
+}
+
+function cargo_publish_crate() {
+    local crate_name=${1:?'need a crate name'}
+    cargo publish -n --registry crates-io -p $crate_name
+    if (( 0 != $? )); then
+        exit $?
+    fi
+}
+
+function cargo_publish() {
+    select_x_crate_name retval_x_crate_name
+    local x_crate_name=$retval_x_crate_name
+    cargo_publish_crate $x_crate_name
 }
 
 function cargo_new() {
-    input_info x_proj_name 'input x proj name: '
+    input_info retval_x_proj_name 'input x proj name: '
+    local x_proj_name=$retval_x_proj_name
     local x_crate_name=$x_proj_prefix$x_proj_name
     local x_crate_path=$x_proj_root/$x_proj_name
     if [[ -d $x_crate_path ]]; then
@@ -119,7 +149,8 @@ function cargo_new() {
     fi
 
     local crate_types=(bin lib)
-    select_option crate_type_index 'select crate type' "${crate_types[@]}"
+    select_option retval_crate_type_index 'select crate type' "${crate_types[@]}"
+    local crate_type_index=$retval_crate_type_index
     cargo new --vcs none --${crate_types[$crate_type_index]} $x_crate_path
     sed -i -E "s#(name\s+=\s+\")(.+?)(\")#\1$x_crate_name\3#g" $x_crate_path/Cargo.toml
     sed -i -E "s#(name\s+=\s+".+?")#\1\ndescription = \"just $x_proj_name, nothing else\"#g" $x_crate_path/Cargo.toml
@@ -151,7 +182,7 @@ function code_coverage() {
     LLVM_PROFILE_FILE=$llvm_profile_file cargo test
 
     if (( 0 != $? )); then
-      exit 1
+      exit $?
     fi
 
     $llvm_profdata merge --instr --sparse $cov_dir/default_*.profraw -o $profdata
@@ -218,6 +249,10 @@ function codecov_upload() {
     fi
 
     codecov -t $CODECOV_TOKEN -f $lcovdata
+
+    if (( 0 != $? )); then
+        exit $?
+    fi
 }
 
 function exit0() {
@@ -227,6 +262,7 @@ function exit0() {
 function select_action() {
     local actions=(
         cargo_test
+        cargo_publish
         cargo_new
         code_coverage
         codecov_upload
@@ -234,12 +270,14 @@ function select_action() {
     )
     local action_labels=(
         'cargo test'
+        'cargo publish'
         'cargo new'
         'code coverage'
         'codecov upload'
         'exit'
     )
-    select_option action_label_index 'select action' "${action_labels[@]}"
+    select_option retval_action_label_index 'select action' "${action_labels[@]}"
+    local action_label_index=$retval_action_label_index
     ${actions[$action_label_index]}
 }
 
