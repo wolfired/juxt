@@ -3,7 +3,7 @@ juxt_md5
 
 [![Crates.io Version](https://img.shields.io/crates/v/juxt_md5?style=flat)](https://crates.io/crates/juxt_md5)
 [![docs.rs](https://img.shields.io/docsrs/juxt_md5?style=flat&logo=docsdotrs)](https://docs.rs/juxt_md5/latest/juxt_md5/)
-[![Codecov](https://img.shields.io/codecov/c/gh/wolfired/juxt_md5?token=YWSDIGP5KD&style=flat&logo=codecov)](https://app.codecov.io/gh/wolfired/juxt_md5)
+<!-- [![Codecov](https://img.shields.io/codecov/c/gh/wolfired/juxt?token=95IHYGJI9H&style=flat&logo=codecov)](https://app.codecov.io/gh/wolfired/juxt) -->
 
 just md5, nothing else
 

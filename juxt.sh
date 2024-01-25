@@ -165,7 +165,7 @@ $x_crate_name
 
 [![Crates.io Version](https://img.shields.io/crates/v/$x_crate_name?style=flat)](https://crates.io/crates/$x_crate_name)
 [![docs.rs](https://img.shields.io/docsrs/$x_crate_name?style=flat&logo=docsdotrs)](https://docs.rs/$x_crate_name/latest/$x_crate_name/)
-[![Codecov](https://img.shields.io/codecov/c/gh/wolfired/$x_crate_name?token=YWSDIGP5KD&style=flat&logo=codecov)](https://app.codecov.io/gh/wolfired/$x_crate_name)
+<!-- [![Codecov](https://img.shields.io/codecov/c/gh/wolfired/$proj_name?token=95IHYGJI9H&style=flat&logo=codecov)](https://app.codecov.io/gh/wolfired/$proj_name) -->
 
 just $x_proj_name, nothing else
 EOF
