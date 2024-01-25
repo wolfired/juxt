@@ -3,8 +3,8 @@ name = "juxt_adler32"
 description = "just adler32, nothing else"
 version = "0.1.0"
 edition = "2021"
-homepage = "https://github.com/wolfired/juxt/tree/main/x/juxt_adler32"
-repository = "https://github.com/wolfired/juxt/tree/main/x/juxt_adler32"
+homepage = "https://github.com/wolfired/juxt/tree/main/x/adler32"
+repository = "https://github.com/wolfired/juxt/tree/main/x/adler32"
 documentation = "https://docs.rs/juxt_adler32"
 license-file.workspace = true
 
