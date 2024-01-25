@@ -23,5 +23,5 @@ jobs:
         rustup component add llvm-tools-x86_64-unknown-linux-gnu
         go install github.com/itchyny/gojq/cmd/gojq@latest
     - name: Coverage
-      run: bash ./juxt.sh
+      run: bash ./juxt.sh code_coverage
 
