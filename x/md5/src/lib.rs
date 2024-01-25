@@ -6,12 +6,12 @@ use std::str::FromStr;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Md5([u8; 16]);
 
-impl Md5 {
-    ///
-    /// append/padded/extended in place
-    ///
-    pub fn from_vec(bytes: &mut Vec<u8>) -> Self {
-        Md5(imp::calc_in_place(bytes))
+impl Display for Md5 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for n in self.0.iter() {
+            write!(f, "{:02x}", n).unwrap();
+        }
+        write!(f, "")
     }
 }
 
@@ -23,12 +23,12 @@ impl FromStr for Md5 {
     }
 }
 
-impl Display for Md5 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for n in self.0.iter() {
-            write!(f, "{:02x}", n).unwrap();
-        }
-        write!(f, "")
+impl Md5 {
+    ///
+    /// append/padded/extended in place
+    ///
+    pub fn from_vec(bytes: &mut Vec<u8>) -> Self {
+        Md5(imp::calc_in_place(bytes))
     }
 }
 
@@ -188,10 +188,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn just_test() {
-        assert_eq!(Md5::from_str("just_md5").unwrap().to_string(), "7ada8af6959dc1ec238617351e7b45ea");
-        assert_eq!(Md5::from_str("just_md5").unwrap().clone().to_string(), "7ada8af6959dc1ec238617351e7b45ea");
-        assert_eq!(Md5::from_str("just_md5").unwrap(), Md5::from_str("just_md5").unwrap());
-        assert_eq!(format!("{:02x?}", Md5::from_str("just_md5").unwrap()), "Md5([7a, da, 8a, f6, 95, 9d, c1, ec, 23, 86, 17, 35, 1e, 7b, 45, ea])");
+    fn it_works() {
+        assert_eq!(Md5::from_str("juxt_md5").unwrap().to_string(), "32f3f7648da7a812e8bcac55822c25bb");
+        assert_eq!(Md5::from_str("juxt_md5").unwrap(), Md5::from_str("juxt_md5").unwrap().clone());
+        assert_eq!(format!("{:02x?}", Md5::from_str("juxt_md5").unwrap()), "Md5([32, f3, f7, 64, 8d, a7, a8, 12, e8, bc, ac, 55, 82, 2c, 25, bb])");
     }
 }

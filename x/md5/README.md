@@ -14,10 +14,10 @@ just md5, nothing else
 use std::fs::read;
 use std::str::FromStr;
 
-use just_md5::Md5;
+use juxt_md5::Md5;
 
 fn main() {
-    println!("{}", Md5::from_str("just_md5").unwrap());
+    println!("{}", Md5::from_str("juxt_md5").unwrap());
     println!("{}", Md5::from_vec(&mut read("path to a file").unwrap()));
 }
 
