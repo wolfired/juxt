@@ -5,6 +5,7 @@ juxt
 [![Codecov](https://img.shields.io/codecov/c/gh/wolfired/juxt?token=95IHYGJI9H&style=flat&logo=codecov)](https://app.codecov.io/gh/wolfired/juxt)
 
 [![Crates.io Version](https://img.shields.io/crates/v/juxt_md5?style=flat&label=md5)](https://crates.io/crates/juxt_md5)
+[![Crates.io Version](https://img.shields.io/crates/v/juxt_adler32?style=flat&label=adler32)](https://crates.io/crates/juxt_adler32)
 
 nothing else
 
