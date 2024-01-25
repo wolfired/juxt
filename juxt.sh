@@ -238,17 +238,17 @@ function codecov_upload() {
         return
     fi
 
-    if [[ ! -x `type codecov | grep -oP '[^\s]+$'` ]]; then
-        color_msg r 'you need get codecov'
-        return
-    fi
-
     if [[ ! -n $CODECOV_TOKEN ]]; then
         color_msg r 'you need setup CODECOV_TOKEN env var'
         return
     fi
 
-    bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN -f $lcovdata
+    local codecov=codecov
+    if [[ ! -x `type codecov | grep -oP '[^\s]+$'` ]]; then
+        codecov='bash <(curl -s https://codecov.io/bash)'
+    fi
+
+    $codecov -t $CODECOV_TOKEN -f $lcovdata
 
     if (( 0 != $? )); then
         exit $?
