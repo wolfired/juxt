@@ -7,6 +7,21 @@ juxt_basex
 
 just basex, nothing else
 
+# Usage
+
+```rust
+
+use std::fs::read;
+use std::str::FromStr;
+
+use juxt_basex::Base64;
+
+fn main() {
+    println!("{}", Base64::from_str("juxt_basex").unwrap());
+}
+
+```
+
 # External Reference
 
 [base16/base32/base64/rfc4648](https://www.ietf.org/rfc/rfc4648.txt)
