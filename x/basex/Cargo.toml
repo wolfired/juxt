@@ -1,0 +1,13 @@
+[package]
+name = "juxt_basex"
+description = "just basex, nothing else"
+version = "0.1.0"
+edition = "2021"
+homepage = "https://github.com/wolfired/juxt/tree/main/x/basex"
+repository = "https://github.com/wolfired/juxt/tree/main/x/basex"
+documentation = "https://docs.rs/juxt_basex"
+license-file.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
