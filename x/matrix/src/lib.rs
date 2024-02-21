@@ -1,15 +1,25 @@
 use std::mem::MaybeUninit;
+use std::ops::Add;
 use std::ops::AddAssign;
+use std::ops::Div;
+use std::ops::DivAssign;
 use std::ops::Mul;
+use std::ops::MulAssign;
 use std::ops::Sub;
+use std::ops::SubAssign;
+use std::ptr::read;
 use std::ptr::write;
 
 pub trait One {
-    fn one() -> Self;
+    type Output;
+
+    fn one() -> Self::Output;
 }
 
 pub trait Zero {
-    fn zero() -> Self;
+    type Output;
+
+    fn zero() -> Self::Output;
 }
 
 pub trait Magnitude {
@@ -74,13 +84,17 @@ macro_rules! impl_zero_one {
     ($($t:ty),*$(,)?) => {
         $(
             impl Zero for $t {
-                fn zero() -> Self {
+                type Output = $t;
+
+                fn zero() -> Self::Output {
                     0 as $t
                 }
             }
 
             impl One for $t {
-                fn one() -> Self {
+                type Output = $t;
+
+                fn one() -> Self::Output {
                     1 as $t
                 }
             }
@@ -89,581 +103,18 @@ macro_rules! impl_zero_one {
 }
 impl_zero_one!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64,);
 
-mod inner {
-    use super::One;
-    use super::Transpose;
-    use super::TransposeAssign;
-    use super::Zero;
-    use std::mem::MaybeUninit;
-    use std::ops::Add;
-    use std::ops::AddAssign;
-    use std::ops::Div;
-    use std::ops::DivAssign;
-    use std::ops::Mul;
-    use std::ops::MulAssign;
-    use std::ops::Sub;
-    use std::ops::SubAssign;
-    use std::ptr::read;
-
+mod sealed {
     #[derive(Debug)]
-    pub struct MatrixInner<const R: usize, const C: usize, T> {
-        pub(super) elements: [[T; C]; R],
-    }
-
-    impl<const R: usize, const C: usize, T: Clone> Clone for MatrixInner<R, C, T> {
-        fn clone(&self) -> Self {
-            Self { elements: self.elements.clone() }
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy> Copy for MatrixInner<R, C, T> {}
-
-    impl<const R: usize, const C: usize, T: Default> Default for MatrixInner<R, C, T> {
-        fn default() -> Self {
-            let mut out: Self = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = T::default();
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: PartialEq> PartialEq for MatrixInner<R, C, T> {
-        fn eq(&self, other: &Self) -> bool {
-            self.elements == other.elements
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Eq> Eq for MatrixInner<R, C, T> {}
-
-    impl<const R: usize, const C: usize, T> From<[[T; C]; R]> for MatrixInner<R, C, T> {
-        fn from(value: [[T; C]; R]) -> Self {
-            Self { elements: value }
-        }
-    }
-
-    impl<const R: usize, const C: usize> From<MatrixInner<R, C, f32>> for MatrixInner<R, C, i32> {
-        fn from(value: MatrixInner<R, C, f32>) -> Self {
-            let mut out: Self = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = value.elements[r][c] as i32;
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize> From<MatrixInner<R, C, i32>> for MatrixInner<R, C, f32> {
-        fn from(value: MatrixInner<R, C, i32>) -> Self {
-            let mut out: Self = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = value.elements[r][c] as f32;
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Add<Self> for MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Add<&'a T, Output = T>,
-    {
-        type Output = Self;
-
-        #[inline]
-        fn add(self, rhs: Self) -> Self::Output {
-            <&Self as Add<&Self>>::add(&self, &rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Add<&Self> for MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Add<&'a T, Output = T>,
-    {
-        type Output = Self;
-
-        #[inline]
-        fn add(self, rhs: &Self) -> Self::Output {
-            <&Self as Add<&Self>>::add(&self, rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T> Add<Self> for &MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Add<&'a T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        fn add(self, rhs: Self) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = &self.elements[r][c] + &rhs.elements[r][c];
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Add<MatrixInner<R, C, T>> for &MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Add<T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        fn add(self, rhs: MatrixInner<R, C, T>) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = &self.elements[r][c] + rhs.elements[r][c];
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize, T> AddAssign<&Self> for MatrixInner<R, C, T>
-    where
-        for<'a> T: AddAssign<&'a T>,
-    {
-        fn add_assign(&mut self, rhs: &Self) {
-            for r in 0..R {
-                for c in 0..C {
-                    self.elements[r][c] += &rhs.elements[r][c];
-                }
-            }
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> AddAssign<Self> for MatrixInner<R, C, T>
-    where
-        for<'a> T: AddAssign<&'a T>,
-    {
-        #[inline]
-        fn add_assign(&mut self, rhs: Self) {
-            <Self as AddAssign<&Self>>::add_assign(self, &rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Sub<Self> for MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Sub<&'a T, Output = T>,
-    {
-        type Output = Self;
-
-        #[inline]
-        fn sub(self, rhs: Self) -> Self::Output {
-            <&Self as Sub<&Self>>::sub(&self, &rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Sub<&Self> for MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Sub<&'a T, Output = T>,
-    {
-        type Output = Self;
-
-        #[inline]
-        fn sub(self, rhs: &Self) -> Self::Output {
-            <&Self as Sub<&Self>>::sub(&self, rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T> Sub<Self> for &MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Sub<&'a T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        fn sub(self, rhs: Self) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = &self.elements[r][c] - &rhs.elements[r][c];
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Sub<MatrixInner<R, C, T>> for &MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Sub<T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        fn sub(self, rhs: MatrixInner<R, C, T>) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = &self.elements[r][c] - rhs.elements[r][c];
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize, T> SubAssign<&Self> for MatrixInner<R, C, T>
-    where
-        for<'a> T: SubAssign<&'a T>,
-    {
-        fn sub_assign(&mut self, rhs: &Self) {
-            for r in 0..R {
-                for c in 0..C {
-                    self.elements[r][c] -= &rhs.elements[r][c];
-                }
-            }
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> SubAssign<Self> for MatrixInner<R, C, T>
-    where
-        for<'a> T: SubAssign<&'a T>,
-    {
-        #[inline]
-        fn sub_assign(&mut self, rhs: Self) {
-            <Self as SubAssign<&Self>>::sub_assign(self, &rhs)
-        }
-    }
-
-    impl<const R: usize, const M: usize, const C: usize, T: Copy + Clone> Mul<MatrixInner<M, C, T>> for MatrixInner<R, M, T>
-    where
-        T: AddAssign<T>,
-        for<'a> &'a T: Mul<&'a T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        #[inline]
-        fn mul(self, rhs: MatrixInner<M, C, T>) -> Self::Output {
-            <&Self as Mul<&MatrixInner<M, C, T>>>::mul(&self, &rhs)
-        }
-    }
-
-    impl<const R: usize, const M: usize, const C: usize, T: Copy + Clone> Mul<&MatrixInner<M, C, T>> for MatrixInner<R, M, T>
-    where
-        T: AddAssign<T>,
-        for<'a> &'a T: Mul<&'a T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        #[inline]
-        fn mul(self, rhs: &MatrixInner<M, C, T>) -> Self::Output {
-            <&Self as Mul<&MatrixInner<M, C, T>>>::mul(&self, rhs)
-        }
-    }
-
-    impl<const R: usize, const M: usize, const C: usize, T> Mul<&MatrixInner<M, C, T>> for &MatrixInner<R, M, T>
-    where
-        T: AddAssign<T>,
-        for<'a> &'a T: Mul<&'a T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        fn mul(self, rhs: &MatrixInner<M, C, T>) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = &self.elements[r][0] * &rhs.elements[0][c];
-                    for m in 1..M {
-                        out.elements[r][c] += &self.elements[r][m] * &rhs.elements[m][c];
-                    }
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const M: usize, const C: usize, T: Copy + Clone> Mul<MatrixInner<M, C, T>> for &MatrixInner<R, M, T>
-    where
-        T: AddAssign<T>,
-        for<'a> &'a T: Mul<T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        fn mul(self, rhs: MatrixInner<M, C, T>) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = &self.elements[r][0] * rhs.elements[0][c];
-                    for m in 1..M {
-                        out.elements[r][c] += &self.elements[r][m] * rhs.elements[m][c];
-                    }
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, T> MulAssign<&Self> for MatrixInner<R, R, T>
-    where
-        T: AddAssign<T>,
-        for<'a> &'a T: Mul<&'a T, Output = T>,
-    {
-        fn mul_assign(&mut self, rhs: &Self) {
-            for r in 0..R {
-                let mut tmp: [T; R] = unsafe { MaybeUninit::uninit().assume_init() };
-                for c in 0..R {
-                    tmp[c] = &self.elements[r][0] * &rhs.elements[0][c];
-                    for m in 1..R {
-                        tmp[c] += &self.elements[r][m] * &rhs.elements[m][c];
-                    }
-                }
-                for c in 0..R {
-                    self.elements[r][c] = unsafe { read((&tmp as *const T).add(c)) };
-                }
-            }
-        }
-    }
-
-    impl<const R: usize, T: Copy + Clone> MulAssign<Self> for MatrixInner<R, R, T>
-    where
-        T: AddAssign<T>,
-        for<'a> &'a T: Mul<&'a T, Output = T>,
-    {
-        #[inline]
-        fn mul_assign(&mut self, rhs: Self) {
-            <Self as MulAssign<&Self>>::mul_assign(self, &rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Mul<T> for MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Mul<&'a T, Output = T>,
-    {
-        type Output = Self;
-
-        #[inline]
-        fn mul(self, rhs: T) -> Self::Output {
-            <&Self as Mul<&T>>::mul(&self, &rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Mul<&T> for MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Mul<&'a T, Output = T>,
-    {
-        type Output = Self;
-
-        #[inline]
-        fn mul(self, rhs: &T) -> Self::Output {
-            <&Self as Mul<&T>>::mul(&self, rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T> Mul<&T> for &MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Mul<&'a T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        fn mul(self, rhs: &T) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = &self.elements[r][c] * rhs;
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Mul<T> for &MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Mul<T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        fn mul(self, rhs: T) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = &self.elements[r][c] * rhs;
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize, T> MulAssign<&T> for MatrixInner<R, C, T>
-    where
-        for<'a> T: MulAssign<&'a T>,
-    {
-        fn mul_assign(&mut self, rhs: &T) {
-            for r in 0..R {
-                for c in 0..C {
-                    self.elements[r][c] *= rhs;
-                }
-            }
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> MulAssign<T> for MatrixInner<R, C, T>
-    where
-        for<'a> T: MulAssign<&'a T>,
-    {
-        #[inline]
-        fn mul_assign(&mut self, rhs: T) {
-            <Self as MulAssign<&T>>::mul_assign(self, &rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Div<T> for MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Div<&'a T, Output = T>,
-    {
-        type Output = Self;
-
-        #[inline]
-        fn div(self, rhs: T) -> Self::Output {
-            <&Self as Div<&T>>::div(&self, &rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Div<&T> for MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Div<&'a T, Output = T>,
-    {
-        type Output = Self;
-
-        #[inline]
-        fn div(self, rhs: &T) -> Self::Output {
-            <&Self as Div<&T>>::div(&self, rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T> Div<&T> for &MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Div<&'a T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        fn div(self, rhs: &T) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = &self.elements[r][c] / rhs;
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Div<T> for &MatrixInner<R, C, T>
-    where
-        for<'a> &'a T: Div<T, Output = T>,
-    {
-        type Output = MatrixInner<R, C, T>;
-
-        fn div(self, rhs: T) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[r][c] = &self.elements[r][c] / rhs;
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, const C: usize, T> DivAssign<&T> for MatrixInner<R, C, T>
-    where
-        for<'a> T: DivAssign<&'a T>,
-    {
-        fn div_assign(&mut self, rhs: &T) {
-            for r in 0..R {
-                for c in 0..C {
-                    self.elements[r][c] /= rhs;
-                }
-            }
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> DivAssign<T> for MatrixInner<R, C, T>
-    where
-        for<'a> T: DivAssign<&'a T>,
-    {
-        #[inline]
-        fn div_assign(&mut self, rhs: T) {
-            <Self as DivAssign<&T>>::div_assign(self, &rhs)
-        }
-    }
-
-    impl<const R: usize, const C: usize, T: Copy + Clone> Transpose for MatrixInner<R, C, T> {
-        type Output = MatrixInner<C, R, T>;
-
-        fn transpose(self) -> Self::Output {
-            let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..C {
-                    out.elements[c][r] = self.elements[r][c];
-                }
-            }
-
-            out
-        }
-    }
-
-    impl<const R: usize, T: Copy + Clone> TransposeAssign for MatrixInner<R, R, T> {
-        fn transpose_assign(&mut self) {
-            for r in 0..R {
-                for c in r..R {
-                    (self.elements[r][c], self.elements[c][r]) = (self.elements[c][r], self.elements[r][c])
-                }
-            }
-        }
-    }
-
-    impl<const R: usize, T: Zero + One> MatrixInner<R, R, T> {
-        pub fn identity() -> Self {
-            let mut out: Self = unsafe { MaybeUninit::uninit().assume_init() };
-
-            for r in 0..R {
-                for c in 0..R {
-                    out.elements[r][c] = if r == c { T::one() } else { T::zero() };
-                }
-            }
-
-            out
-        }
+    pub struct MatrixSealed<const R: usize, const C: usize, T> {
+        pub(crate) elements: [[T; C]; R],
     }
 }
 
 #[cfg(doc)]
 #[doc(hidden)]
-pub use inner::MatrixInner as _;
+pub use sealed::MatrixSealed as _;
 
-pub type Matrix<const R: usize, const C: usize, T> = inner::MatrixInner<R, C, T>;
+pub type Matrix<const R: usize, const C: usize, T> = sealed::MatrixSealed<R, C, T>;
 pub type Matrix2<T> = Matrix<2, 2, T>;
 pub type Matrix2i = Matrix2<i32>;
 pub type Matrix2f = Matrix2<f32>;
@@ -683,6 +134,554 @@ pub type Vector3f = Vector3<f32>;
 pub type Vector4<T> = Vector<4, T>;
 pub type Vector4i = Vector4<i32>;
 pub type Vector4f = Vector4<f32>;
+
+impl<const R: usize, const C: usize, T: Clone> Clone for Matrix<R, C, T> {
+    fn clone(&self) -> Self {
+        Self { elements: self.elements.clone() }
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy> Copy for Matrix<R, C, T> {}
+
+impl<const R: usize, const C: usize, T: Default> Default for Matrix<R, C, T> {
+    fn default() -> Self {
+        let mut out: Self = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = T::default();
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize, T: PartialEq> PartialEq for Matrix<R, C, T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.elements == other.elements
+    }
+}
+
+impl<const R: usize, const C: usize, T: Eq> Eq for Matrix<R, C, T> {}
+
+impl<const R: usize, const C: usize, T> From<[[T; C]; R]> for Matrix<R, C, T> {
+    fn from(value: [[T; C]; R]) -> Self {
+        Self { elements: value }
+    }
+}
+
+impl<const R: usize, const C: usize> From<Matrix<R, C, f32>> for Matrix<R, C, i32> {
+    fn from(value: Matrix<R, C, f32>) -> Self {
+        let mut out: Self = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = value.elements[r][c] as i32;
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize> From<Matrix<R, C, i32>> for Matrix<R, C, f32> {
+    fn from(value: Matrix<R, C, i32>) -> Self {
+        let mut out: Self = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = value.elements[r][c] as f32;
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Add<Self> for Matrix<R, C, T>
+where
+    for<'a> &'a T: Add<&'a T, Output = T>,
+{
+    type Output = Self;
+
+    #[inline]
+    fn add(self, rhs: Self) -> Self::Output {
+        <&Self as Add<&Self>>::add(&self, &rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Add<&Self> for Matrix<R, C, T>
+where
+    for<'a> &'a T: Add<&'a T, Output = T>,
+{
+    type Output = Self;
+
+    #[inline]
+    fn add(self, rhs: &Self) -> Self::Output {
+        <&Self as Add<&Self>>::add(&self, rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T> Add<Self> for &Matrix<R, C, T>
+where
+    for<'a> &'a T: Add<&'a T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = &self.elements[r][c] + &rhs.elements[r][c];
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Add<Matrix<R, C, T>> for &Matrix<R, C, T>
+where
+    for<'a> &'a T: Add<T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    fn add(self, rhs: Matrix<R, C, T>) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = &self.elements[r][c] + rhs.elements[r][c];
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize, T> AddAssign<&Self> for Matrix<R, C, T>
+where
+    for<'a> T: AddAssign<&'a T>,
+{
+    fn add_assign(&mut self, rhs: &Self) {
+        for r in 0..R {
+            for c in 0..C {
+                self.elements[r][c] += &rhs.elements[r][c];
+            }
+        }
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> AddAssign<Self> for Matrix<R, C, T>
+where
+    for<'a> T: AddAssign<&'a T>,
+{
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        <Self as AddAssign<&Self>>::add_assign(self, &rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Sub<Self> for Matrix<R, C, T>
+where
+    for<'a> &'a T: Sub<&'a T, Output = T>,
+{
+    type Output = Self;
+
+    #[inline]
+    fn sub(self, rhs: Self) -> Self::Output {
+        <&Self as Sub<&Self>>::sub(&self, &rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Sub<&Self> for Matrix<R, C, T>
+where
+    for<'a> &'a T: Sub<&'a T, Output = T>,
+{
+    type Output = Self;
+
+    #[inline]
+    fn sub(self, rhs: &Self) -> Self::Output {
+        <&Self as Sub<&Self>>::sub(&self, rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T> Sub<Self> for &Matrix<R, C, T>
+where
+    for<'a> &'a T: Sub<&'a T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = &self.elements[r][c] - &rhs.elements[r][c];
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Sub<Matrix<R, C, T>> for &Matrix<R, C, T>
+where
+    for<'a> &'a T: Sub<T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    fn sub(self, rhs: Matrix<R, C, T>) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = &self.elements[r][c] - rhs.elements[r][c];
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize, T> SubAssign<&Self> for Matrix<R, C, T>
+where
+    for<'a> T: SubAssign<&'a T>,
+{
+    fn sub_assign(&mut self, rhs: &Self) {
+        for r in 0..R {
+            for c in 0..C {
+                self.elements[r][c] -= &rhs.elements[r][c];
+            }
+        }
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> SubAssign<Self> for Matrix<R, C, T>
+where
+    for<'a> T: SubAssign<&'a T>,
+{
+    #[inline]
+    fn sub_assign(&mut self, rhs: Self) {
+        <Self as SubAssign<&Self>>::sub_assign(self, &rhs)
+    }
+}
+
+impl<const R: usize, const M: usize, const C: usize, T: Copy + Clone> Mul<Matrix<M, C, T>> for Matrix<R, M, T>
+where
+    T: AddAssign<T>,
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    #[inline]
+    fn mul(self, rhs: Matrix<M, C, T>) -> Self::Output {
+        <&Self as Mul<&Matrix<M, C, T>>>::mul(&self, &rhs)
+    }
+}
+
+impl<const R: usize, const M: usize, const C: usize, T: Copy + Clone> Mul<&Matrix<M, C, T>> for Matrix<R, M, T>
+where
+    T: AddAssign<T>,
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    #[inline]
+    fn mul(self, rhs: &Matrix<M, C, T>) -> Self::Output {
+        <&Self as Mul<&Matrix<M, C, T>>>::mul(&self, rhs)
+    }
+}
+
+impl<const R: usize, const M: usize, const C: usize, T> Mul<&Matrix<M, C, T>> for &Matrix<R, M, T>
+where
+    T: AddAssign<T>,
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    fn mul(self, rhs: &Matrix<M, C, T>) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = &self.elements[r][0] * &rhs.elements[0][c];
+                for m in 1..M {
+                    out.elements[r][c] += &self.elements[r][m] * &rhs.elements[m][c];
+                }
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const M: usize, const C: usize, T: Copy + Clone> Mul<Matrix<M, C, T>> for &Matrix<R, M, T>
+where
+    T: AddAssign<T>,
+    for<'a> &'a T: Mul<T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    fn mul(self, rhs: Matrix<M, C, T>) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = &self.elements[r][0] * rhs.elements[0][c];
+                for m in 1..M {
+                    out.elements[r][c] += &self.elements[r][m] * rhs.elements[m][c];
+                }
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, T> MulAssign<&Self> for Matrix<R, R, T>
+where
+    T: AddAssign<T>,
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+{
+    fn mul_assign(&mut self, rhs: &Self) {
+        for r in 0..R {
+            let mut tmp: [T; R] = unsafe { MaybeUninit::uninit().assume_init() };
+            for c in 0..R {
+                tmp[c] = &self.elements[r][0] * &rhs.elements[0][c];
+                for m in 1..R {
+                    tmp[c] += &self.elements[r][m] * &rhs.elements[m][c];
+                }
+            }
+            for c in 0..R {
+                self.elements[r][c] = unsafe { read((&tmp as *const T).add(c)) };
+            }
+        }
+    }
+}
+
+impl<const R: usize, T: Copy + Clone> MulAssign<Self> for Matrix<R, R, T>
+where
+    T: AddAssign<T>,
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+{
+    #[inline]
+    fn mul_assign(&mut self, rhs: Self) {
+        <Self as MulAssign<&Self>>::mul_assign(self, &rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Mul<T> for Matrix<R, C, T>
+where
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+{
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, rhs: T) -> Self::Output {
+        <&Self as Mul<&T>>::mul(&self, &rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Mul<&T> for Matrix<R, C, T>
+where
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+{
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, rhs: &T) -> Self::Output {
+        <&Self as Mul<&T>>::mul(&self, rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T> Mul<&T> for &Matrix<R, C, T>
+where
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    fn mul(self, rhs: &T) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = &self.elements[r][c] * rhs;
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Mul<T> for &Matrix<R, C, T>
+where
+    for<'a> &'a T: Mul<T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = &self.elements[r][c] * rhs;
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize, T> MulAssign<&T> for Matrix<R, C, T>
+where
+    for<'a> T: MulAssign<&'a T>,
+{
+    fn mul_assign(&mut self, rhs: &T) {
+        for r in 0..R {
+            for c in 0..C {
+                self.elements[r][c] *= rhs;
+            }
+        }
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> MulAssign<T> for Matrix<R, C, T>
+where
+    for<'a> T: MulAssign<&'a T>,
+{
+    #[inline]
+    fn mul_assign(&mut self, rhs: T) {
+        <Self as MulAssign<&T>>::mul_assign(self, &rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Div<T> for Matrix<R, C, T>
+where
+    for<'a> &'a T: Div<&'a T, Output = T>,
+{
+    type Output = Self;
+
+    #[inline]
+    fn div(self, rhs: T) -> Self::Output {
+        <&Self as Div<&T>>::div(&self, &rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Div<&T> for Matrix<R, C, T>
+where
+    for<'a> &'a T: Div<&'a T, Output = T>,
+{
+    type Output = Self;
+
+    #[inline]
+    fn div(self, rhs: &T) -> Self::Output {
+        <&Self as Div<&T>>::div(&self, rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T> Div<&T> for &Matrix<R, C, T>
+where
+    for<'a> &'a T: Div<&'a T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    fn div(self, rhs: &T) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = &self.elements[r][c] / rhs;
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Div<T> for &Matrix<R, C, T>
+where
+    for<'a> &'a T: Div<T, Output = T>,
+{
+    type Output = Matrix<R, C, T>;
+
+    fn div(self, rhs: T) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[r][c] = &self.elements[r][c] / rhs;
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, const C: usize, T> DivAssign<&T> for Matrix<R, C, T>
+where
+    for<'a> T: DivAssign<&'a T>,
+{
+    fn div_assign(&mut self, rhs: &T) {
+        for r in 0..R {
+            for c in 0..C {
+                self.elements[r][c] /= rhs;
+            }
+        }
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> DivAssign<T> for Matrix<R, C, T>
+where
+    for<'a> T: DivAssign<&'a T>,
+{
+    #[inline]
+    fn div_assign(&mut self, rhs: T) {
+        <Self as DivAssign<&T>>::div_assign(self, &rhs)
+    }
+}
+
+impl<const R: usize, const C: usize, T: Copy + Clone> Transpose for Matrix<R, C, T> {
+    type Output = Matrix<C, R, T>;
+
+    fn transpose(self) -> Self::Output {
+        let mut out: Self::Output = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..C {
+                out.elements[c][r] = self.elements[r][c];
+            }
+        }
+
+        out
+    }
+}
+
+impl<const R: usize, T: Copy + Clone> TransposeAssign for Matrix<R, R, T> {
+    fn transpose_assign(&mut self) {
+        for r in 0..R {
+            for c in r..R {
+                (self.elements[r][c], self.elements[c][r]) = (self.elements[c][r], self.elements[r][c])
+            }
+        }
+    }
+}
+
+impl<const R: usize, T: Zero<Output = T> + One<Output = T>> Matrix<R, R, T> {
+    pub fn identity() -> Self {
+        let mut out: Self = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for r in 0..R {
+            for c in 0..R {
+                out.elements[r][c] = if r == c { T::one() } else { T::zero() };
+            }
+        }
+
+        out
+    }
+}
 
 impl<const C: usize, T> From<[T; C]> for Vector<C, T> {
     fn from(value: [T; C]) -> Self {
@@ -981,7 +980,7 @@ where
     }
 }
 
-impl<T: Copy + Clone + Zero> Cross<Self> for Vector4<T>
+impl<T: Copy + Clone + Zero<Output = T>> Cross<Self> for Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -994,7 +993,7 @@ where
     }
 }
 
-impl<T: Copy + Clone + Zero> Cross<&Self> for Vector4<T>
+impl<T: Copy + Clone + Zero<Output = T>> Cross<&Self> for Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -1007,7 +1006,7 @@ where
     }
 }
 
-impl<T: Zero> Cross<Self> for &Vector4<T>
+impl<T: Zero<Output = T>> Cross<Self> for &Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -1026,7 +1025,7 @@ where
     }
 }
 
-impl<T: Copy + Clone + Zero> Cross<Vector4<T>> for &Vector4<T>
+impl<T: Copy + Clone + Zero<Output = T>> Cross<Vector4<T>> for &Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<T, Output = T>,
@@ -1045,7 +1044,7 @@ where
     }
 }
 
-impl<T: Zero> CrossAssign<&Self> for Vector4<T>
+impl<T: Zero<Output = T>> CrossAssign<&Self> for Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -1055,7 +1054,7 @@ where
     }
 }
 
-impl<T: Copy + Clone + Zero> CrossAssign<Self> for Vector4<T>
+impl<T: Copy + Clone + Zero<Output = T>> CrossAssign<Self> for Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<&'a T, Output = T>,
