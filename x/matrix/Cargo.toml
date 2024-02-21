@@ -1,0 +1,11 @@
+[package]
+name = "juxt_matrix"
+description = "just matrix, nothing else"
+version = "0.1.0"
+edition = "2021"
+homepage = "https://github.com/wolfired/juxt/tree/main/x/matrix"
+repository = "https://github.com/wolfired/juxt/tree/main/x/matrix"
+documentation = "https://docs.rs/juxt_matrix"
+license-file.workspace = true
+
+[dependencies]
