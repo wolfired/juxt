@@ -11,15 +11,11 @@ use std::ptr::read;
 use std::ptr::write;
 
 pub trait One {
-    type Output;
-
-    fn one() -> Self::Output;
+    fn one() -> Self;
 }
 
 pub trait Zero {
-    type Output;
-
-    fn zero() -> Self::Output;
+    fn zero() -> Self;
 }
 
 pub trait Magnitude {
@@ -84,17 +80,13 @@ macro_rules! impl_zero_one {
     ($($t:ty),*$(,)?) => {
         $(
             impl Zero for $t {
-                type Output = $t;
-
-                fn zero() -> Self::Output {
+                fn zero() -> Self {
                     0 as $t
                 }
             }
 
             impl One for $t {
-                type Output = $t;
-
-                fn one() -> Self::Output {
+                fn one() -> Self {
                     1 as $t
                 }
             }
@@ -669,7 +661,7 @@ impl<const R: usize, T: Copy + Clone> TransposeAssign for Matrix<R, R, T> {
     }
 }
 
-impl<const R: usize, T: Zero<Output = T> + One<Output = T>> Matrix<R, R, T> {
+impl<const R: usize, T: Zero + One> Matrix<R, R, T> {
     pub fn identity() -> Self {
         let mut out: Self = unsafe { MaybeUninit::uninit().assume_init() };
 
@@ -980,7 +972,7 @@ where
     }
 }
 
-impl<T: Copy + Clone + Zero<Output = T>> Cross<Self> for Vector4<T>
+impl<T: Copy + Clone + Zero> Cross<Self> for Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -993,7 +985,7 @@ where
     }
 }
 
-impl<T: Copy + Clone + Zero<Output = T>> Cross<&Self> for Vector4<T>
+impl<T: Copy + Clone + Zero> Cross<&Self> for Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -1006,7 +998,7 @@ where
     }
 }
 
-impl<T: Zero<Output = T>> Cross<Self> for &Vector4<T>
+impl<T: Zero> Cross<Self> for &Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -1025,7 +1017,7 @@ where
     }
 }
 
-impl<T: Copy + Clone + Zero<Output = T>> Cross<Vector4<T>> for &Vector4<T>
+impl<T: Copy + Clone + Zero> Cross<Vector4<T>> for &Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<T, Output = T>,
@@ -1044,7 +1036,7 @@ where
     }
 }
 
-impl<T: Zero<Output = T>> CrossAssign<&Self> for Vector4<T>
+impl<T: Zero> CrossAssign<&Self> for Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -1054,7 +1046,7 @@ where
     }
 }
 
-impl<T: Copy + Clone + Zero<Output = T>> CrossAssign<Self> for Vector4<T>
+impl<T: Copy + Clone + Zero> CrossAssign<Self> for Vector4<T>
 where
     T: Sub<T, Output = T>,
     for<'a> &'a T: Mul<&'a T, Output = T>,
