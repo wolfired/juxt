@@ -84,7 +84,6 @@ mod imp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::string::ToString;
 
     #[test]
     fn it_works() {
